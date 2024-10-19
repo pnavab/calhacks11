@@ -39,7 +39,7 @@ const saveNote = async (content: string) => {
 const transcribeAudioChunk = async (audioChunk: Blob) => {
   try {
     const formData = new FormData();
-    formData.append('audio', audioChunk, 'audio.webm');
+    formData.set('audio', audioChunk, 'audio.webm');
 
     const response = await fetch('/api/transcribe', {
       method: 'POST',
@@ -99,33 +99,37 @@ export default function Component() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
-
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm', // Ensure consistent MIME type
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+  
+      // Handle data available event
       mediaRecorder.ondataavailable = async (event) => {
         if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data)
-          await sendAudioChunk(event.data)
+          audioChunksRef.current.push(event.data);
+          await sendAudioChunk(event.data); // Send each chunk as it arrives
         }
-      }
-
-      mediaRecorder.start(300) // Chunk every 300ms (0.3 seconds)
-      setIsRecording(true)
-      setError(null)
+      };
+  
+      // Start recording with a time slice for chunks
+      mediaRecorder.start(3000); // Creates a new Blob every 3 seconds
+      setIsRecording(true);
+      setError(null);
     } catch (error) {
-      console.error('Error accessing microphone:', error)
-      setError('Failed to access microphone. Please check your permissions.')
+      console.error('Error accessing microphone:', error);
+      setError('Failed to access microphone. Please check your permissions.');
     }
-  }
-
+  };
+  
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
-  }
+  };
 
   const toggleRecording = () => {
     if (isRecording) {
