@@ -26,8 +26,8 @@ const summarizeNote = async (previousSummary: string, transcriptChunk: string, c
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result = await response.json();
-    return { success: true, subpages: result.subpages, message: 'Note summarized successfully' };
+    const validatedData = await response.json();
+    return { success: true, existingContexts: [...validatedData.existingContexts], currentContext: validatedData.currentContext, summary: validatedData.summary, createNewContext: validatedData.createNewContext, message: 'Note summarized successfully' };
   } catch (error) {
     console.error('Error summarizing note:', error);
     return { success: false, subpages: [], message: 'Failed to summarize note' };
@@ -68,6 +68,7 @@ export default function Component() {
   const [isCycling, setIsCycling] = useState(false)
   const [editingTitle, setEditingTitle] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [lastClickTime, setLastClickTime] = useState<number | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -82,20 +83,36 @@ export default function Component() {
       summarizeNote(notes[currentPage].content, content, currentPageTitle, titles).then(result => {
         setIsSummarizing(false)
         setSummarizeStatus(result.message)
-        if (result.success && Array.isArray(result.subpages) && result.subpages.length > 0) {
-          setNotes(result.subpages.map((subpage: string, index: number) => ({ title: `Page ${index + 1}`, content: subpage })))
-          setCurrentPage(0)
+        if (result.success) {
+          setNotes(oldNotes => {
+            const newNotes = [...oldNotes]
+            const currentNote = newNotes[currentPage]
+            const isDefaultTitle = currentNote.title.startsWith('Untitled Note')
+            const newNote = { title: result.currentContext, content: result.summary }
+
+            if (isDefaultTitle || !result.createNewContext) {
+              // Update the current note
+              newNotes[currentPage] = newNote
+            } else {
+              // Create a new note
+              newNotes.push(newNote)
+              setCurrentPage(newNotes.length - 1)
+            }
+            return newNotes
+          })
+          setCurrentPageTitle(result.currentContext)
         }
-        setTimeout(() => setSummarizeStatus(''), 5000) // Clear status after 2 seconds
+        setTimeout(() => setSummarizeStatus(''), 5000)
       })
-    }, 1000), [])
+    }, 3000),
+    [notes, currentPage, currentPageTitle]
+  )
 
   useEffect(() => {
-    if (notes[currentPage]) {
+    if (notes[currentPage] && notes[currentPage].content.trim() !== '') {
       debouncedSummarize(notes[currentPage].content)
-      setCurrentPageTitle(notes[currentPage].title)
     }
-  }, [notes, currentPage, debouncedSummarize])
+  }, [notes[currentPage]?.content, debouncedSummarize]);
 
   useEffect(() => {
     return () => {
@@ -175,7 +192,17 @@ export default function Component() {
   }
 
   const handleTitleClick = (index: number) => {
-    setEditingTitle(index)
+    const currentTime = new Date().getTime()
+    
+    if (lastClickTime && currentTime - lastClickTime < 300) {
+      // Double click detected
+      setEditingTitle(index)
+      setLastClickTime(null) // Reset last click time
+    } else {
+      // Single click
+      setCurrentPage(index)
+      setLastClickTime(currentTime)
+    }
   }
 
   const handleTitleBlur = () => {
@@ -264,10 +291,7 @@ export default function Component() {
                   />
                 ) : (
                   <button
-                    onClick={() => {
-                      setCurrentPage(index)
-                      handleTitleClick(index)
-                    }}
+                    onClick={() => handleTitleClick(index)}
                     className="focus:outline-none w-32 h-10"
                   >
                     {note.title}
