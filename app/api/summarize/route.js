@@ -13,6 +13,10 @@ const summaryRequestBodySchema = z.object({
   transcriptChunk: z.string(),
   currentContext: z.string(),
   existingContexts: z.array(z.string()),
+  allNotes: z.array(z.object({
+    title: z.string(),
+    content: z.string()
+  })),
 });
 
 const summaryResponseSchema = z.object({
@@ -26,8 +30,8 @@ export async function POST(request) {
   try {
     // Parse and validate request body
     const body = await request.json();
-    const { previousSummary, transcriptChunk, currentContext, existingContexts } = summaryRequestBodySchema.parse(body);
-
+    let { previousSummary, transcriptChunk, currentContext, existingContexts, allNotes } = summaryRequestBodySchema.parse(body);
+    let actualSummary = "";
     let createNewContext = false; //boolean whether a new context is created, indicates a new subpage
 
     const transcriptChunkContext = await checkForContextSwitch(transcriptChunk, existingContexts);
@@ -35,13 +39,29 @@ export async function POST(request) {
       createNewContext = true;
       existingContexts.push(transcriptChunkContext);
     }
+    console.log(typeof allNotes, allNotes) 
+    if (!createNewContext) {
+      const matchedNote = allNotes?.find(note => note.title === transcriptChunkContext);      
+      actualSummary = matchedNote ? matchedNote.content : previousSummary;
+      console.log("previous summary is", actualSummary, "current topic is", transcriptChunkContext)
+    }
 
     // TODO: figure out a way to fetch the context from a different subpage if it already exists and set the summary to that
 
-    const prompt = `Based on the previous summary, either create a bullet point summary if it is blank or add new bullet points to the existing summary with new summarized information gained from the transcript chunk. 
-    Previous summary: "${previousSummary}". New chunk: "${transcriptChunk}". Current context: "${transcriptChunkContext}". Return only the summary formatted with Markdown.`;
+    const prompt = `You are a summary generating assistant simulating a school student's behavior. You are intended to only work with the provided information without generating any external information. Do not use any padding about your instructions or training, ONLY generate a summary as it would appear in a student's notebook. The transcript chunk simulates snippets from the teacher's lecture, which you will interpret and generate a concise summary of.
+
+    Based on the provided existing previous summary, either create a bullet point summary if it is blank or revise and add new bullet points to the existing summary with new summarized information gained from the transcript chunk. The generated output summary should only relate to the provided transcript chunk and should not include any information that has to do with other topics or concepts, since those belong in another category. For example, If the existing previous summary provided relates to Mathematics, and the transcript chunk relates to Birthdays, then the generated summary should only include information that relates to the current context being discussed since it is on a separate page.
+
+    Here is the data you will work with:
+
+    *Existing previous summary*: "${actualSummary}".
+    *New teacher transcript chunk*: "${transcriptChunk}".
+    *Current topic*: "${transcriptChunkContext}".
+    
+    Return only the relevant summary formatted with Markdown, only including information from the transcript that relates to the current educational topic. Do not repeat the information included in the transcript chunk, and do not talk about details concerning the summary's information itself. Pretend you are a student writing directly into your notes and write only what is relevant to provide a learning experience.`;
+
     const { text } = await generateText({
-      model: groqInstance('llama-3.2-11b-text-preview'),
+      model: groqInstance('llama-3.2-90b-text-preview'),
       prompt,
     });
     
@@ -70,3 +90,7 @@ async function checkForContextSwitch(transcriptChunk, existingContexts) {
   console.log(text);
   return text;
 }
+
+// async function cleanContext() {
+
+// }

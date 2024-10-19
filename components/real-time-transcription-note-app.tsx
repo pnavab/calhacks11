@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Mic, MicOff, Plus, X } from "lucide-react"
 
 // API call for saving notes
-const summarizeNote = async (previousSummary: string, transcriptChunk: string, currentContext: string, existingContexts: string[]) => {
+const summarizeNote = async (previousSummary: string, transcriptChunk: string, currentContext: string, existingContexts: string[], allNotes: any) => {
   try {
     const response = await fetch('/api/summarize', {
       method: 'POST',
@@ -19,6 +19,7 @@ const summarizeNote = async (previousSummary: string, transcriptChunk: string, c
         transcriptChunk,
         currentContext,
         existingContexts,
+        allNotes,
       }),
     });
 
@@ -76,43 +77,83 @@ export default function Component() {
   const streamRef = useRef<MediaStream | null>(null)
   const newTabInputRef = useRef<HTMLInputElement>(null)
 
-  const debouncedSummarize = useCallback(
-    debounce((content: string) => {
-      setIsSummarizing(true)
-      const titles = notes.map(note => note.title);
-      summarizeNote(notes[currentPage].content, content, currentPageTitle, titles).then(result => {
-        setIsSummarizing(false)
-        setSummarizeStatus(result.message)
-        if (result.success) {
-          setNotes(oldNotes => {
-            const newNotes = [...oldNotes]
-            const currentNote = newNotes[currentPage]
-            const isDefaultTitle = currentNote.title.startsWith('Untitled Note')
-            const newNote = { title: result.currentContext, content: result.summary }
+  const [pendingContent, setPendingContent] = useState('')
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-            if (isDefaultTitle || !result.createNewContext) {
-              // Update the current note
-              newNotes[currentPage] = newNote
-            } else {
-              // Create a new note
-              newNotes.push(newNote)
-              setCurrentPage(newNotes.length - 1)
-            }
-            return newNotes
-          })
-          setCurrentPageTitle(result.currentContext)
-        }
-        setTimeout(() => setSummarizeStatus(''), 5000)
-      })
-    }, 3000),
-    [notes, currentPage, currentPageTitle]
-  )
+  const summarizeContent = useCallback((content: string) => {
+    setIsSummarizing(true)
+    const titles = notes.map(note => note.title);
+    console.log("all notes is", notes)
+    summarizeNote(notes[currentPage].content, content, currentPageTitle, titles, notes).then(result => {
+      setIsSummarizing(false)
+      setSummarizeStatus(result.message)
+      if (result.success) {
+        setNotes(oldNotes => {
+          const newNotes = [...oldNotes]
+          const currentNote = newNotes[currentPage]
+          const isDefaultTitle = currentNote.title.startsWith('Untitled Note')
+          const newNote = { title: result.currentContext, content: result.summary }
+          const noteIndex = newNotes.findIndex(note => note.title === newNote.title);
+
+          if (noteIndex !== -1) {
+            // Update the existing note at the found index
+            newNotes[noteIndex] = newNote;
+            setCurrentPage(noteIndex)
+          } else if (newNote.title.startsWith('Untitled Note') || !result.createNewContext) {
+            // Update the current page if it's a default title or no new context is created
+            newNotes[currentPage] = newNote;
+            setCurrentPage(noteIndex)
+          } else {
+            // Add a new note if a new context is created
+            newNotes.push(newNote);
+            setCurrentPage(newNotes.length - 1);
+          }
+          return newNotes
+        })
+        setCurrentPageTitle(result.currentContext)
+        setPendingContent('')
+      }
+      setTimeout(() => setSummarizeStatus(''), 5000)
+    })
+  }, [notes, currentPage, currentPageTitle])
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    // const newContent = e.target.value
+    // const newNotes = [...notes]
+    // newNotes[currentPage] = { ...newNotes[currentPage], content: newContent }
+    // setNotes(newNotes)
+    // setPendingContent(newContent)
+
+    // if (timerRef.current) {
+    //   clearTimeout(timerRef.current)
+    // }
+
+    // timerRef.current = setTimeout(() => {
+    //   summarizeContent(newContent)
+    // }, 2000)
+  }
+  
+  // Handle changes in the pending content
+  const handlePendingContent = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setPendingContent(newContent);
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      summarizeContent(newContent); // Submit pending content after timeout
+    }, 1000);
+  };
 
   useEffect(() => {
-    if (notes[currentPage] && notes[currentPage].content.trim() !== '') {
-      debouncedSummarize(notes[currentPage].content)
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
     }
-  }, [notes[currentPage]?.content, debouncedSummarize]);
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -153,12 +194,6 @@ export default function Component() {
     } catch (error) {
       console.error('Error accessing microphone:', error)
     }
-  }
-
-  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newNotes = [...notes]
-    newNotes[currentPage] = { ...newNotes[currentPage], content: e.target.value }
-    setNotes(newNotes)
   }
 
   const addNewPage = () => {
@@ -257,99 +292,96 @@ export default function Component() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-4xl font-[1000] text-gray-900">Notes</h1>
-          <Button onClick={toggleRecording} className={isCycling ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}>
-            {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
-            {isCycling ? 'Stop Recording' : 'Start Recording'}
-          </Button>
-        </div>
-      </header>
-      <main className="flex-grow flex flex-col p-4">
-        <div className="max-w-7xl w-full mx-auto flex-grow flex flex-col">
-          <div className="flex items-center space-x-2 overflow-x-auto">
-            {notes.map((note, index) => (
-              <div
-                key={index}
-                className={`inline-flex items-center px-3 py-2 rounded-lg text-lg font-semibold ${
-                  currentPage === index
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {editingTitle === index ? (
-                  <Input
-                    ref={newTabInputRef}
-                    type="text"
-                    value={note.title}
-                    onChange={(e) => updatePageTitle(index, e.target.value)}
-                    onBlur={handleTitleBlur}
-                    onKeyDown={handleTitleKeyDown}
-                    className="w-32 bg-transparent border-none focus:outline-none text-center text-lg"
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    onClick={() => handleTitleClick(index)}
-                    className="focus:outline-none w-32 h-10"
-                  >
-                    {note.title}
-                  </button>
-                )}
-                {notes.length > 1 && (
-                  <button
-                    onClick={() => removePage(index)}
-                    className="ml-2 text-gray-400 hover:text-gray-600"
-                    aria-label={`Remove ${note.title}`}
-                  >
-                    <X className="size-6" />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              onClick={addNewPage}
-              className="inline-flex justify-center items-center px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 size-14"
-              aria-label="Add new note"
-            >
-              <Plus className="size-6" />
-            </button>
-          </div>
-          <div className="relative flex-grow flex flex-col mt-4">
-            <Textarea
-              value={notes[currentPage]?.content || ''}
-              onChange={handleNoteChange}
-              placeholder="Start typing or recording your notes here..."
-              className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
-              aria-label="Note input"
-            />
-            <div className="absolute bottom-4 right-4 flex items-center space-x-2">
-              {isSummarizing && (
-                <Loader2 className="animate-spin h-5 w-5 text-gray-400" />
-              )}
-              {summarizeStatus && (
-                <span className="text-sm text-green-600">{summarizeStatus}</span>
-              )}
-            </div>
-          </div>
-          {error && (
-            <div className="mt-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-        </div>
-      </main>
+    <header className="bg-white shadow-sm">
+    <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+    <h1 className="text-4xl font-[1000] text-gray-900">Notes</h1>
+    <Button onClick={toggleRecording} className={isCycling ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}>
+    {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
+    {isCycling ? 'Stop Recording' : 'Start Recording'}
+    </Button>
     </div>
-  )
-}
-
-// Debounce function
-function debounce<F extends (...args: any[]) => any>(func: F, wait: number) {
-  let timeout: ReturnType<typeof setTimeout> | null = null
-  return function(this: any, ...args: Parameters<F>) {
-    const context = this
-    if (timeout !== null) clearTimeout(timeout)
-    timeout = setTimeout(() => func.apply(context, args), wait)
-  }
-}
+    </header>
+    <main className="flex-grow flex flex-col p-4">
+    <div className="max-w-7xl w-full mx-auto flex-grow flex flex-col">
+    <div className="flex items-center space-x-2 overflow-x-auto">
+    {notes.map((note, index) => (
+    <div
+    key={index}
+    className={`inline-flex items-center px-3 py-2 rounded-lg text-lg font-semibold ${
+    currentPage === index
+    ? 'bg-blue-100 text-blue-600'
+    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+    }`}
+    >
+    {editingTitle === index ? (
+    <Input
+    ref={newTabInputRef}
+    type="text"
+    value={note.title}
+    onChange={(e) => updatePageTitle(index, e.target.value)}
+    onBlur={handleTitleBlur}
+    onKeyDown={handleTitleKeyDown}
+    className="w-32 bg-transparent border-none focus:outline-none text-center text-lg"
+    autoFocus
+    />
+    ) : (
+    <button
+    onClick={() => handleTitleClick(index)}
+    className="focus:outline-none w-32 h-10"
+    >
+    {note.title}
+    </button>
+    )}
+    {notes.length > 1 && (
+    <button
+    onClick={() => removePage(index)}
+    className="ml-2 text-gray-400 hover:text-gray-600"
+    aria-label={`Remove ${note.title}`}
+    >
+    <X className="size-6" />
+    </button>
+    )}
+    </div>
+    ))}
+    <button
+    onClick={addNewPage}
+    className="inline-flex justify-center items-center px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 size-14"
+    aria-label="Add new note"
+    >
+    <Plus className="size-6" />
+    </button>
+    </div>
+    <div className="relative flex-grow flex flex-col mt-4">
+    <Textarea
+    value={notes[currentPage]?.content || ''}
+    // onChange={handleNoteChange}
+    placeholder="Existing note content..."
+    className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
+    aria-label="Existing Note Input"
+    />
+    <Textarea
+    value={pendingContent}
+    onChange={handlePendingContent}
+    placeholder="Type or record your notes here..."
+    className="flex-grow text-lg p-4 mt-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
+    aria-label="Pending Note Input"
+    />
+    <div className="absolute bottom-4 right-4 flex items-center space-x-2">
+    {isSummarizing && (
+    <Loader2 className="animate-spin h-5 w-5 text-gray-400" />
+    )}
+    {summarizeStatus && (
+    <span className="text-sm text-green-600">{summarizeStatus}</span>
+    )}
+    </div>
+    </div>
+    {error && (
+    <div className="mt-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+    {error}
+    </div>
+    )}
+    </div>
+    </main>
+    </div>
+    )
+    }
