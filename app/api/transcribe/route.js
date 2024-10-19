@@ -1,7 +1,6 @@
 import { Groq } from 'groq-sdk';
 import { NextResponse } from 'next/server';
 
-// Initialize the Groq client
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
@@ -21,9 +20,6 @@ export async function POST(req) {
       type: 'audio/webm',
     });
 
-    console.log(`Converted file type: ${convertedFile.type}`);
-
-    // Create a transcription job
     const transcription = await groq.audio.transcriptions.create({
       file: convertedFile,
       model: 'whisper-large-v3',
@@ -32,7 +28,6 @@ export async function POST(req) {
       temperature: 0.0,
     });
 
-    // Return the transcribed text
     return NextResponse.json({ transcription: transcription.text }, { status: 200 });
   } catch (error) {
     console.error('Error transcribing audio:', error);

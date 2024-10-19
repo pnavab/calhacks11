@@ -34,13 +34,6 @@ const summarizeNote = async (previousSummary: string, transcriptChunk: string, c
   }
 }
 
-// Simulated API call for saving notes
-// const summarizeNote = async (content: string) => {
-//   await new Promise(resolve => setTimeout(resolve, 300)) // Simulate network delay
-//   console.log('Note saved:', content)
-//   // @ts-ignore
-//   return { success: true, subpages: result.subpages,message: 'Note summarized successfully' }
-// }
 
 // API call for transcribing audio chunks
 const transcribeAudioChunk = async (audioChunk: Blob) => {

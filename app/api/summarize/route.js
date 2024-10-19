@@ -3,6 +3,7 @@
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import { z } from 'zod';
+import { NextResponse } from 'next/server';
 
 // Create a new instance of groq
 const groqInstance = createGroq();
@@ -37,7 +38,6 @@ export async function POST(request) {
 
     // TODO: figure out a way to fetch the context from a different subpage if it already exists and set the summary to that
 
-
     const prompt = `Previous summary: "${previousSummary}". New chunk: "${transcriptChunk}". Current context: "${transcriptChunkContext}". Provide only a cohesive full summary.`;
     const { text: newSummary } = await generateText({
       model: groqInstance('llama-3.1-70b-versatile'),
@@ -46,16 +46,11 @@ export async function POST(request) {
     
     // Validate and respond with new summary and context
     const validatedData = summaryResponseSchema.parse({ summary: newSummary, currentContext: transcriptChunkContext, existingContexts: existingContexts, createNewContext: createNewContext });
-    return new Response(JSON.stringify(validatedData), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.log({validatedData})
+    return NextResponse.json(validatedData, { status: 200 });
   } catch (error) {
     console.error('Error generating full summary:', error);
-    return new Response(JSON.stringify({ error: 'Failed to generate full summary' }), {
-
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: 'Failed to generate full summary' }, { status: 500 });
   }
 }
 
