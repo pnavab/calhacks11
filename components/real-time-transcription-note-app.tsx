@@ -9,7 +9,7 @@ import { Loader2, Mic, MicOff, Plus, X } from "lucide-react"
 // API call for saving notes
 const summarizeNote = async (previousSummary: string, transcriptChunk: string, currentContext: string, existingContexts: string[]) => {
   try {
-    const response = await fetch('/api/summarizer', {
+    const response = await fetch('/api/summarize', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -79,14 +79,14 @@ export default function Component() {
     debounce((content: string) => {
       setIsSummarizing(true)
       const titles = notes.map(note => note.title);
-      summarizeNote(summarizeStatus, content, currentPageTitle, titles).then(result => {
+      summarizeNote(notes[currentPage].content, content, currentPageTitle, titles).then(result => {
         setIsSummarizing(false)
         setSummarizeStatus(result.message)
         if (result.success && Array.isArray(result.subpages) && result.subpages.length > 0) {
           setNotes(result.subpages.map((subpage: string, index: number) => ({ title: `Page ${index + 1}`, content: subpage })))
           setCurrentPage(0)
         }
-        setTimeout(() => setSummarizeStatus(''), 2000) // Clear status after 2 seconds
+        setTimeout(() => setSummarizeStatus(''), 5000) // Clear status after 2 seconds
       })
     }, 1000), [])
 
