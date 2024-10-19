@@ -38,13 +38,12 @@ export async function POST(request) {
 
     // TODO: figure out a way to fetch the context from a different subpage if it already exists and set the summary to that
 
-    const prompt = `Based on the previous summary, either create one if it is blank or add on to the existing summary with new summarized information gained from the transcript chunk. 
-    Previous summary: "${previousSummary}". New chunk: "${transcriptChunk}". Current context: "${transcriptChunkContext}". Return only the summary.`;
+    const prompt = `Based on the previous summary, either create a bullet point summary if it is blank or add new bullet points to the existing summary with new summarized information gained from the transcript chunk. 
+    Previous summary: "${previousSummary}". New chunk: "${transcriptChunk}". Current context: "${transcriptChunkContext}". Return only the summary formatted with Markdown.`;
     const { text } = await generateText({
-      model: groqInstance('llama-3.1-70b-versatile'),
+      model: groqInstance('llama-3.2-11b-text-preview'),
       prompt,
     });
-    console.log("summary is", text)
     
     // Validate and respond with new summary and context
     const validatedData = summaryResponseSchema.parse({ summary: text, currentContext: transcriptChunkContext, existingContexts: existingContexts, createNewContext: createNewContext });
