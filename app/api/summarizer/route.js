@@ -19,6 +19,8 @@ const summaryRequestBodySchema = z.object({
 const summaryResponseSchema = z.object({
   summary: z.string(),
   currentContext: z.string(),
+  existingContexts: z.array(z.string()),
+  createNewContext: z.boolean(),
 });
 
 export async function POST(request) {
@@ -30,7 +32,7 @@ export async function POST(request) {
     let createNewContext = false; //boolean whether a new context is created, indicates a new subpage
 
     const transcriptChunkContext = await checkForContextSwitch(transcriptChunk, currentContext, existingContexts);
-    if (transcriptChunkContext != currentContext) {
+    if (transcriptChunkContext !== currentContext && !existingContexts.includes(transcriptChunkContext)) {
       createNewContext = true;
       existingContexts.push(transcriptChunkContext);
     }
@@ -64,6 +66,8 @@ async function checkForContextSwitch(transcriptChunk, currentContext, existingCo
   const prompt = `For this prompt, respond only with a topic. Based on the provided transcript chunk, determine if it fits into any of the existing contexts listed in the existing contexts array. If it does, return exactly the context from the existing contexts that matches the current. Otherwise, return a new topic that should be added.
   
   For example, if the transcript chunk correlates with a topic regarding traveling, and the existing contexts contain "Travel", then the only output should be directly from the existing contexts, which in this case is "Travel". If the transcript chunk correlates with a topic regarding cooking, and the existing contexts contain only "Travel", then the only output should be invented, for example as "Cooking".
+  
+  Do not return the output with any formatting, just the pure word or phrase. Do not include any additional text or explanations.
   
   Transcript Chunk: "${transcriptChunk}". Existing Contexts: "${existingContexts}".`;
   const { text } = await generateText({
