@@ -7,14 +7,19 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Mic, MicOff, Plus, X } from "lucide-react"
 
 // API call for saving notes
-const summarizeNote = async (content: string) => {
+const summarizeNote = async (previousSummary: string, transcriptChunk: string, currentContext: string, existingContexts: string[]) => {
   try {
-    const response = await fetch('/api/summarize', {
+    const response = await fetch('/api/summarizer', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        previousSummary,
+        transcriptChunk,
+        currentContext,
+        existingContexts,
+      }),
     });
 
     if (!response.ok) {
@@ -63,6 +68,7 @@ const transcribeAudioChunk = async (audioChunk: Blob) => {
 export default function Component() {
   const [notes, setNotes] = useState<{ title: string; content: string }[]>([{title: 'Untitled Note', content: ''}])
   const [currentPage, setCurrentPage] = useState(0)
+  const [currentPageTitle, setCurrentPageTitle] = useState('')
   const [isSummarizing, setIsSummarizing] = useState(false)
   const [summarizeStatus, setSummarizeStatus] = useState('')
   const cycleDuration = 2000 // 3 seconds in milliseconds
@@ -79,10 +85,11 @@ export default function Component() {
   const debouncedSummarize = useCallback(
     debounce((content: string) => {
       setIsSummarizing(true)
-      summarizeNote(content).then(result => {
+      const titles = notes.map(note => note.title);
+      summarizeNote(summarizeStatus, content, currentPageTitle, titles).then(result => {
         setIsSummarizing(false)
         setSummarizeStatus(result.message)
-        if (result.success && result.subpages.length > 0) {
+        if (result.success && Array.isArray(result.subpages) && result.subpages.length > 0) {
           setNotes(result.subpages.map((subpage: string, index: number) => ({ title: `Page ${index + 1}`, content: subpage })))
           setCurrentPage(0)
         }
@@ -93,6 +100,7 @@ export default function Component() {
   useEffect(() => {
     if (notes[currentPage]) {
       debouncedSummarize(notes[currentPage].content)
+      setCurrentPageTitle(notes[currentPage].title)
     }
   }, [notes, currentPage, debouncedSummarize])
 
@@ -144,7 +152,7 @@ export default function Component() {
   }
 
   const addNewPage = () => {
-    const newNotes = [...notes, { title: 'Untitled Note', content: '' }]
+    const newNotes = [...notes, { title: `Untitled Note ${notes.length + 1}`, content: '' }]
     setNotes(newNotes)
     setCurrentPage(newNotes.length - 1)
     setEditingTitle(newNotes.length - 1)
@@ -167,6 +175,10 @@ export default function Component() {
     const newNotes = [...notes]
     newNotes[index] = { ...newNotes[index], title: newTitle }
     setNotes(newNotes)
+
+    if (index === currentPage) {
+      setCurrentPageTitle(newTitle)
+    }
   }
 
   const handleTitleClick = (index: number) => {
