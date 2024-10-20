@@ -8,7 +8,6 @@ import { Loader2, Mic, MicOff, Plus, X, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DiagramGenerator from "@/components/diagram-generator";
 import mermaid from "mermaid";
-import { DiagramList } from './diagram-list';
 
 const DEBOUNCE_DELAY = 2000;
 const CYCLE_DURATION = 2000;
@@ -295,6 +294,7 @@ export default function Component() {
     setNotes(newNotes);
     setCurrentPage(newNotes.length - 1);
     setEditingTitle(newNotes.length - 1);
+    setCurrentDiagram(null);
     setTimeout(() => {
       if (newTabInputRef.current) {
         newTabInputRef.current.focus();
@@ -508,6 +508,12 @@ export default function Component() {
     mermaid.initialize({ startOnLoad: true });
   }, []);
 
+  // Update the setCurrentPage function to reset currentDiagram
+  const handleSetCurrentPage = (index: number) => {
+    setCurrentPage(index);
+    setCurrentDiagram(null);
+  };
+
   return (
     <div className="max-h-[calc(100vh-28px)] bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
@@ -528,33 +534,14 @@ export default function Component() {
                 "Export Notes"
               )}
             </Button>
-            <Button
-              onClick={handleGenerateDiagram}
-              className={`bg-purple-500 hover:bg-purple-600 ${canGenerateDiagram ? 'opacity-100' : 'opacity-50'}`}
-              disabled={!canGenerateDiagram || isGeneratingDiagram}
-            >
-              {isGeneratingDiagram ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Image className="mr-2" />
-              )}
-              {isGeneratingDiagram ? 'Generating...' : 'Generate Diagram'}
-            </Button>
           </div>
         </div>
       </header>
       <main className="flex-grow flex p-4 w-full h-[calc(100vh-100px)]">
         <div className={`${showDiagrams ? 'w-2/3' : 'w-full'} h-full flex flex-col`}>
-          <div className="flex items-center space-x-2 overflow-x-auto mb-4">
+          <div className="flex items-center space-x-2 overflow-x-auto mb-4 pr-32 relative">
             {notes.map((note, index) => (
-              <div
-                key={index}
-                className={`inline-flex items-center px-3 py-2 rounded-lg text-lg font-semibold ${
-                  currentPage === index
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
+              <div key={index} className="flex-shrink-0">
                 {editingTitle === index ? (
                   <Input
                     ref={newTabInputRef}
@@ -567,31 +554,47 @@ export default function Component() {
                     autoFocus
                   />
                 ) : (
-                  <button
-                    onClick={() => handleTitleClick(index)}
-                    className="focus:outline-none w-32 h-10"
+                  <Button
+                    onClick={() => handleSetCurrentPage(index)}
+                    className={`inline-flex items-center px-3 py-2 rounded-lg text-lg font-semibold ${
+                      currentPage === index
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
                   >
                     {note.title}
-                  </button>
-                )}
-                {notes.length > 1 && (
-                  <button
-                    onClick={() => removePage(index)}
-                    className="ml-2 text-gray-400 hover:text-gray-600"
-                    aria-label={`Remove ${note.title}`}
-                  >
-                    <X className="size-6" />
-                  </button>
+                    {notes.length > 1 && (
+                      <button
+                        onClick={() => removePage(index)}
+                        className="ml-2 text-gray-400 hover:text-gray-600"
+                        aria-label={`Remove ${note.title}`}
+                      >
+                        <X className="size-6" />
+                      </button>
+                    )}
+                  </Button>
                 )}
               </div>
             ))}
             <button
               onClick={addNewPage}
-              className="inline-flex justify-center items-center px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 size-14"
+              className="inline-flex justify-center items-center px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 size-10"
               aria-label="Add new note"
             >
               <Plus className="size-6" />
             </button>
+            <Button
+              onClick={handleGenerateDiagram}
+              className={`absolute right-0 bg-purple-500 hover:bg-purple-600 ${canGenerateDiagram ? 'opacity-100' : 'opacity-50'}`}
+              disabled={!canGenerateDiagram || isGeneratingDiagram}
+            >
+              {isGeneratingDiagram ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Image className="mr-2" />
+              )}
+              {isGeneratingDiagram ? 'Generating...' : 'Generate Diagram'}
+            </Button>
           </div>
           <div className="flex-grow flex flex-col h-[calc(100%-4rem)]">
             <div className="h-3/4 mb-4">
