@@ -679,9 +679,12 @@ export default function Component() {
               <>
                 <h4 className="text-md font-semibold mb-2">Selected Diagram</h4>
                 <DiagramGenerator key={currentDiagram.id} mermaidCode={currentDiagram.code} />
-                <p className="mt-2 text-sm text-gray-600">
-                  <strong>Based on:</strong> {currentDiagram.text}
-                </p>
+                <div className="mt-2 text-sm text-gray-600">
+                  <strong>Based on:</strong>
+                  <ReactMarkdown className="markdown-content">
+                    {currentDiagram.text}
+                  </ReactMarkdown>
+                </div>
               </>
             )}
           </div>
