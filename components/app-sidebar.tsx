@@ -69,7 +69,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <div className="flex items-center justify-between mb-4">
-            <SidebarGroupLabel className="text-2xl font-bold text-blue-800">Search Notes</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-3xl font-bold text-blue-800">Search Notes</SidebarGroupLabel>
             {loading && (
               <svg
                 className="animate-spin h-5 w-5 text-blue-800"

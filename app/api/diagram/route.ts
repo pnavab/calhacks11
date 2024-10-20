@@ -16,6 +16,8 @@ export const POST = async (request: NextRequest) => {
 
       Provide only the Mermaid diagram code, without any additional text or explanations. 
       Ensure each element of the diagram is on a new line for proper formatting.
+      Makre sure the syntax code is correct and no syntax errors.
+      If there is not enough information to create a diagram, create a diagram with 1 node
 
       Here is some documentation about the syntax: ${syntaxCode}
     `;
