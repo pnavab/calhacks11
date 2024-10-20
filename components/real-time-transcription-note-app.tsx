@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 // API call for saving notes
 const summarizeNote = async (
@@ -402,14 +403,17 @@ export default function Component() {
             </button>
           </div>
           <div className="relative flex-grow flex flex-col mt-4">
-            <Textarea
+            {/* <Textarea
               value={notes[currentPage]?.content || ""}
               // onChange={handleNoteChange}
               readOnly
               placeholder="Existing note content..."
               className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
               aria-label="Existing Note Input"
-            />
+            /> */}
+            <div className="flex-grow bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out max-h-96 overflow-y-auto">
+              <ReactMarkdown>{notes[currentPage]?.content || "Existing note content..."}</ReactMarkdown>
+            </div>
             <Textarea
               value={pendingContent}
               onChange={handleManualInput}
