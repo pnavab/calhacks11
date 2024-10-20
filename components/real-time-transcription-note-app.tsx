@@ -56,7 +56,6 @@ const summarizeNote = async (
   }
 };
 
-
 // API call for transcribing audio chunks
 const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
   try {
