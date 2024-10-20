@@ -14,10 +14,15 @@ export default function DiagramGenerator({ mermaidCode }: DiagramGeneratorProps)
       mermaid.render(`mermaid-${Date.now()}`, mermaidCode).then((result) => {
         if (mermaidRef.current) {
           mermaidRef.current.innerHTML = result.svg;
+          const svg = mermaidRef.current.querySelector('svg');
+          if (svg) {
+            svg.style.display = 'block';
+            svg.style.margin = 'auto';
+          }
         }
       });
     }
   }, [mermaidCode]);
 
-  return <div ref={mermaidRef} className="mermaid"></div>;
+  return <div ref={mermaidRef} className="mermaid w-full h-full flex items-center justify-center"/>;
 }

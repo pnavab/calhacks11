@@ -8,6 +8,7 @@ import { Loader2, Mic, MicOff, Plus, X, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DiagramGenerator from "@/components/diagram-generator";
 import mermaid from "mermaid";
+import DiagramModal from './diagram-modal';
 
 const DEBOUNCE_DELAY = 2000;
 const CYCLE_DURATION = 2000;
@@ -114,6 +115,7 @@ export default function Component() {
   const [isGeneratingDiagram, setIsGeneratingDiagram] = useState(false);
   const [diagramText, setDiagramText] = useState("");
   const [canGenerateDiagram, setCanGenerateDiagram] = useState(false);
+  const [zoomedDiagram, setZoomedDiagram] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -526,6 +528,14 @@ export default function Component() {
     }
   };
 
+  const handleDiagramClick = (diagramCode: string) => {
+    setZoomedDiagram(diagramCode);
+  };
+
+  const closeModal = () => {
+    setZoomedDiagram(null);
+  };
+
   return (
     <div className="max-h-[calc(100vh-28px)] bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
@@ -678,7 +688,12 @@ export default function Component() {
             {currentDiagram && (
               <>
                 <h4 className="text-md font-semibold mb-2">Selected Diagram</h4>
-                <DiagramGenerator key={currentDiagram.id} mermaidCode={currentDiagram.code} />
+                <div 
+                  onClick={() => setZoomedDiagram(currentDiagram.code)} 
+                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <DiagramGenerator key={currentDiagram.id} mermaidCode={currentDiagram.code} />
+                </div>
                 <div className="mt-2 text-sm text-gray-600">
                   <strong>Based on:</strong>
                   <ReactMarkdown className="markdown-content">
@@ -690,6 +705,9 @@ export default function Component() {
           </div>
         )}
       </main>
+      {zoomedDiagram && (
+        <DiagramModal mermaidCode={zoomedDiagram} onClose={() => setZoomedDiagram(null)} />
+      )}
     </div>
   );
 }
