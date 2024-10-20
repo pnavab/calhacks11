@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-const DEBOUNCE_DELAY = 4000;
+const DEBOUNCE_DELAY = 2000;
 const CYCLE_DURATION = 2000;
 
 // API call for saving notes
@@ -385,7 +385,7 @@ export default function Component() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col w-full">
+    <div className="max-h-[calc(100vh-28px)] bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-4xl font-[1000] text-gray-900">Notes</h1>
@@ -409,9 +409,9 @@ export default function Component() {
           </Button>
         </div>
       </header>
-      <main className="flex-grow flex flex-col p-4 w-full">
-        <div className="max-w-full w-full mx-auto flex-grow flex flex-col">
-          <div className="flex items-center space-x-2 overflow-x-auto">
+      <main className="flex-grow flex flex-col p-4 w-full h-[calc(100vh-100px)]"> {/* Adjust 64px if your header height is different */}
+        <div className="w-full h-full flex flex-col">
+          <div className="flex items-center space-x-2 overflow-x-auto mb-4">
             {notes.map((note, index) => (
               <div
                 key={index}
@@ -459,41 +459,45 @@ export default function Component() {
               <Plus className="size-6" />
             </button>
           </div>
-          <div className="relative flex-grow flex flex-col mt-4">
-            {editMode ? (
+          <div className="flex-grow flex flex-col h-[calc(100%-4rem)]"> {/* Subtract the height of the tab navigation */}
+            <div className="h-3/4 mb-4">
+              {editMode ? (
+                <Textarea
+                  value={notes[currentPage]?.content || ""}
+                  onChange={handleNoteEdit}
+                  onBlur={handleEditBlur}
+                  placeholder="Edit your note here..."
+                  className="w-full h-full text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out resize-none"
+                  aria-label="Edit Note"
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  onClick={handleViewClick}
+                  className="w-full h-full bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out overflow-y-auto cursor-text"
+                >
+                  <ReactMarkdown>{notes[currentPage]?.content || "Click to edit..."}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+            <div className="h-1/4 relative">
               <Textarea
-                value={notes[currentPage]?.content || ""}
-                onChange={handleNoteEdit}
-                onBlur={handleEditBlur}
-                placeholder="Edit your note here..."
-                className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
-                aria-label="Edit Note"
-                autoFocus
+                value={pendingContent}
+                onChange={handleManualInput}
+                placeholder="Type or record your notes here..."
+                className="w-full h-full text-lg p-2 rounded-lg shadow-inner bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out resize-none"
+                aria-label="Pending Note Input"
               />
-            ) : (
-              <div 
-                onClick={handleViewClick}
-                className="flex-grow bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out max-h-96 overflow-y-auto cursor-text"
-              >
-                <ReactMarkdown>{notes[currentPage]?.content || "Click to edit..."}</ReactMarkdown>
+              <div className="absolute bottom-4 right-4 flex items-center space-x-2">
+                {isSummarizing && (
+                  <Loader2 className="animate-spin h-5 w-5 text-gray-400" />
+                )}
+                {summarizeStatus && (
+                  <span className="text-sm text-green-600">
+                    {summarizeStatus}
+                  </span>
+                )}
               </div>
-            )}
-            <Textarea
-              value={pendingContent}
-              onChange={handleManualInput}
-              placeholder="Type or record your notes here..."
-              className="h-20 text-lg p-2 mt-4 rounded-lg shadow-inner bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
-              aria-label="Pending Note Input"
-            />
-            <div className="absolute bottom-4 right-4 flex items-center space-x-2">
-              {isSummarizing && (
-                <Loader2 className="animate-spin h-5 w-5 text-gray-400" />
-              )}
-              {summarizeStatus && (
-                <span className="text-sm text-green-600">
-                  {summarizeStatus}
-                </span>
-              )}
             </div>
           </div>
           {error && (
