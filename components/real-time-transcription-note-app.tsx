@@ -61,7 +61,7 @@ const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
   try {
     const formData = new FormData();
     formData.set("audio", audioChunk, "audio.webm");
-    formData.append("text", text, "text.txt");
+    formData.append("text", text);
 
     const response = await fetch("/api/transcribe", {
       method: "POST",
