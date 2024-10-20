@@ -8,9 +8,9 @@ import { Loader2, Mic, MicOff, Plus, X, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DiagramGenerator from "@/components/diagram-generator";
 import mermaid from "mermaid";
-import DiagramModal from './diagram-modal';
+import DiagramModal from '@/components/diagram-modal';
 
-const DEBOUNCE_DELAY = 2000;
+const DEBOUNCE_DELAY = 4000;
 const CYCLE_DURATION = 2000;
 
 // API call for saving notes
@@ -210,7 +210,7 @@ export default function Component() {
     [notes, currentPage, currentPageTitle]
   );
 
-  // Handle changes in the pending content for manual input
+  // Update the handleManualInput function
   const handleManualInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setPendingContent(newContent);
@@ -219,9 +219,16 @@ export default function Component() {
       clearTimeout(timerRef.current);
     }
 
-    timerRef.current = setTimeout(() => {
+    // Check if the input event is a paste event
+    if (e.nativeEvent instanceof InputEvent && e.nativeEvent.inputType === 'insertFromPaste') {
+      // Immediately summarize for paste events
       summarizeContent(newContent);
-    }, DEBOUNCE_DELAY);
+    } else {
+      // Use debounce for regular typing
+      timerRef.current = setTimeout(() => {
+        summarizeContent(newContent);
+      }, DEBOUNCE_DELAY);
+    }
   };
   // Handle changes in the pending content for transcribed audio
   const handleTranscribedInput = (newContent: string) => {
@@ -649,6 +656,14 @@ export default function Component() {
               <Textarea
                 value={pendingContent}
                 onChange={handleManualInput}
+                onPaste={(e) => {
+                  // Prevent default to avoid double paste
+                  e.preventDefault();
+                  const pastedText = e.clipboardData.getData('text');
+                  const newContent = pendingContent + pastedText;
+                  setPendingContent(newContent);
+                  summarizeContent(newContent);
+                }}
                 placeholder="Type or record your notes here..."
                 className="w-full h-full text-lg p-2 rounded-lg shadow-inner bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out resize-none"
                 aria-label="Pending Note Input"
