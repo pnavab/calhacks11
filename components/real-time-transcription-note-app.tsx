@@ -56,6 +56,27 @@ const summarizeNote = async (
   }
 };
 
+//API call for exporting the notes
+const exportNotes = async (notes: any) => {
+  try {
+    const response = await fetch("http://localhost:8000/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(notes),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    console.log("Notes exported successfully");
+  } catch (error) {
+    console.error("Error exporting notes:", error);
+  }
+};
+
 // API call for transcribing audio chunks
 const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
   try {
@@ -352,6 +373,9 @@ export default function Component() {
           >
             {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
             {isCycling ? "Stop Recording" : "Start Recording"}
+          </Button>
+          <Button onClick={async () => await exportNotes(notes)} className="bg-green-500 hover:bg-green-600">
+            Export Notes
           </Button>
         </div>
       </header>
