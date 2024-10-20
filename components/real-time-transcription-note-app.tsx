@@ -155,8 +155,21 @@ export default function Component() {
     [notes, currentPage, currentPageTitle]
   );
 
-  // Handle changes in the pending content
-  const handlePendingContent = (newContent: string) => {
+  // Handle changes in the pending content for manual input
+  const handleManualInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setPendingContent(newContent);
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      summarizeContent(newContent);
+    }, 4000);
+  };
+  // Handle changes in the pending content for transcribed audio
+  const handleTranscribedInput = (newContent: string) => {
     setPendingContent((prevContent) => prevContent + " " + newContent);
 
     if (timerRef.current) {
@@ -164,7 +177,7 @@ export default function Component() {
     }
 
     timerRef.current = setTimeout(() => {
-      summarizeContent(newContent); // Submit pending content after timeout
+      summarizeContent(pendingContent + " " + newContent);
     }, 4000);
   };
 
@@ -208,7 +221,7 @@ export default function Component() {
         });
         try {
           const result = await transcribeAudioChunk(audioBlob);
-          handlePendingContent(result.text);
+          handleTranscribedInput(result.text);
         } catch (error) {
           console.error("Transcription error:", error);
         }
@@ -392,13 +405,14 @@ export default function Component() {
             <Textarea
               value={notes[currentPage]?.content || ""}
               // onChange={handleNoteChange}
+              readOnly
               placeholder="Existing note content..."
               className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
               aria-label="Existing Note Input"
             />
             <Textarea
               value={pendingContent}
-              // onChange={(e) => handlePendingContent(e.target.value)}
+              onChange={handleManualInput}
               placeholder="Type or record your notes here..."
               className="flex-grow text-lg p-4 mt-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
               aria-label="Pending Note Input"
