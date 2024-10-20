@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import React,{ useState, useCallback, useEffect, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Plus, X, Image } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import DiagramGenerator from "@/components/diagram-generator";
+import mermaid from "mermaid";
+import { DiagramList } from './diagram-list';
 
 const DEBOUNCE_DELAY = 2000;
 const CYCLE_DURATION = 2000;
@@ -80,9 +83,21 @@ const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
   }
 };
 
+interface Diagram {
+  id: string;
+  code: string;
+  text: string;
+}
+
+interface Note {
+  title: string;
+  content: string;
+  diagrams: Diagram[];
+}
+
 export default function Component() {
-  const [notes, setNotes] = useState<{ title: string; content: string }[]>([
-    { title: "Untitled Note", content: "" },
+  const [notes, setNotes] = useState<Note[]>([
+    { title: "Untitled Note", content: "", diagrams: [] },
   ]);
   const [currentPage, setCurrentPage] = useState(0);
   const [currentPageTitle, setCurrentPageTitle] = useState("");
@@ -94,6 +109,12 @@ export default function Component() {
   const [lastClickTime, setLastClickTime] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
+  const [showDiagrams, setShowDiagrams] = useState(false);
+  const [currentDiagram, setCurrentDiagram] = useState<Diagram | null>(null);
+  const [isGeneratingDiagram, setIsGeneratingDiagram] = useState(false);
+  const [diagramText, setDiagramText] = useState("");
+  const [canGenerateDiagram, setCanGenerateDiagram] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -103,6 +124,8 @@ export default function Component() {
 
   const [pendingContent, setPendingContent] = useState("");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const selectedTextRef = useRef("");
 
   //API call for exporting the notes
   const exportNotes = async () => {
@@ -120,7 +143,7 @@ export default function Component() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
   
-      console.log("Notes exported successfully");
+      // console.log("Notes exported successfully");
     } catch (error) {
       console.error("Error exporting notes:", error);
     } finally {
@@ -132,7 +155,7 @@ export default function Component() {
     (content: string) => {
       setIsSummarizing(true);
       const titles = notes.map((note) => note.title);
-      console.log("all notes is", notes);
+      // console.log("all notes is", notes);
       summarizeNote(
         notes[currentPage].content,
         content,
@@ -151,6 +174,7 @@ export default function Component() {
             const newNote = {
               title: result.currentContext,
               content: result.summary,
+              diagrams: [],
             };
 
             if (isDefaultTitle && isEmptyNote) {
@@ -266,7 +290,7 @@ export default function Component() {
   const addNewPage = () => {
     const newNotes = [
       ...notes,
-      { title: `Untitled Note ${notes.length + 1}`, content: "" },
+      { title: `Untitled Note ${notes.length + 1}`, content: "", diagrams: [] },
     ];
     setNotes(newNotes);
     setCurrentPage(newNotes.length - 1);
@@ -384,33 +408,143 @@ export default function Component() {
     setEditMode(false);
   };
 
+  const handleTextSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      setDiagramText(selection.toString());
+      setCanGenerateDiagram(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("mouseup", handleTextSelection);
+    return () => {
+      document.removeEventListener("mouseup", handleTextSelection);
+    };
+  }, [handleTextSelection]);
+
+  const handleGenerateDiagram = async () => {
+    if (diagramText) {
+      setIsGeneratingDiagram(true);
+      setShowDiagrams(true);
+      try {
+        const response = await fetch("/api/diagram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ note: diagramText }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.mermaidCode) {
+          const newDiagram: Diagram = {
+            id: Date.now().toString(),
+            code: data.mermaidCode,
+            text: diagramText,
+          };
+          setNotes(prevNotes => {
+            const updatedNotes = [...prevNotes];
+            updatedNotes[currentPage] = {
+              ...updatedNotes[currentPage],
+              diagrams: [...updatedNotes[currentPage].diagrams, newDiagram],
+            };
+            return updatedNotes;
+          });
+          setCurrentDiagram(newDiagram);
+        } else {
+          console.error("Failed to generate diagram: No mermaidCode in response");
+        }
+      } catch (error) {
+        console.error("Error generating diagram:", error);
+      } finally {
+        setIsGeneratingDiagram(false);
+        setCanGenerateDiagram(false);
+      }
+    }
+  };
+
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  };
+
+  const highlightText = (text: string, highlightedText: string) => {
+    if (!highlightedText) return text;
+    const escapedHighlightedText = escapeRegExp(highlightedText);
+    const parts = text.split(new RegExp(`(${escapedHighlightedText})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === highlightedText.toLowerCase() 
+        ? <mark key={i}>{part}</mark> 
+        : part
+    );
+  };
+
+  const renderMarkdown = (content: string) => {
+    return (
+      <ReactMarkdown
+        components={{
+          p: ({node, ...props}) => {
+            const children = React.Children.toArray(props.children);
+            return (
+              <p {...props}>
+                {children.map((child, index) => 
+                  typeof child === 'string' 
+                    ? highlightText(child, currentDiagram?.text || '')
+                    : child
+                )}
+              </p>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
+  };
+
+  useEffect(() => {
+    mermaid.initialize({ startOnLoad: true });
+  }, []);
+
   return (
     <div className="max-h-[calc(100vh-28px)] bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-4xl font-[1000] text-gray-900">Notes</h1>
-          <Button
-            onClick={toggleRecording}
-            className={
-              isCycling
-                ? "bg-red-500 hover:bg-red-600"
-                : "bg-blue-500 hover:bg-blue-600"
-            }
-          >
-            {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
-            {isCycling ? "Stop Recording" : "Start Recording"}
-          </Button>
-          <Button onClick={exportNotes} className="bg-green-500 hover:bg-green-600">
-            {isExporting ? (
-              <Loader2 className="animate-spin h-5 w-5 text-white" />
-            ) : (
-              "Export Notes"
-            )}
-          </Button>
+          <div className="flex items-center space-x-4">
+            <Button
+              onClick={toggleRecording}
+              className={isCycling ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}
+            >
+              {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
+              {isCycling ? "Stop Recording" : "Start Recording"}
+            </Button>
+            <Button onClick={exportNotes} className="bg-green-500 hover:bg-green-600">
+              {isExporting ? (
+                <Loader2 className="animate-spin h-5 w-5 text-white" />
+              ) : (
+                "Export Notes"
+              )}
+            </Button>
+            <Button
+              onClick={handleGenerateDiagram}
+              className={`bg-purple-500 hover:bg-purple-600 ${canGenerateDiagram ? 'opacity-100' : 'opacity-50'}`}
+              disabled={!canGenerateDiagram || isGeneratingDiagram}
+            >
+              {isGeneratingDiagram ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Image className="mr-2" />
+              )}
+              {isGeneratingDiagram ? 'Generating...' : 'Generate Diagram'}
+            </Button>
+          </div>
         </div>
       </header>
-      <main className="flex-grow flex flex-col p-4 w-full h-[calc(100vh-100px)]"> {/* Adjust 64px if your header height is different */}
-        <div className="w-full h-full flex flex-col">
+      <main className="flex-grow flex p-4 w-full h-[calc(100vh-100px)]">
+        <div className={`${showDiagrams ? 'w-2/3' : 'w-full'} h-full flex flex-col`}>
           <div className="flex items-center space-x-2 overflow-x-auto mb-4">
             {notes.map((note, index) => (
               <div
@@ -459,7 +593,7 @@ export default function Component() {
               <Plus className="size-6" />
             </button>
           </div>
-          <div className="flex-grow flex flex-col h-[calc(100%-4rem)]"> {/* Subtract the height of the tab navigation */}
+          <div className="flex-grow flex flex-col h-[calc(100%-4rem)]">
             <div className="h-3/4 mb-4">
               {editMode ? (
                 <Textarea
@@ -476,7 +610,7 @@ export default function Component() {
                   onClick={handleViewClick}
                   className="w-full h-full bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out overflow-y-auto cursor-text"
                 >
-                  <ReactMarkdown>{notes[currentPage]?.content || "Click to edit..."}</ReactMarkdown>
+                  {renderMarkdown(notes[currentPage]?.content || "Click to edit...")}
                 </div>
               )}
             </div>
@@ -506,6 +640,31 @@ export default function Component() {
             </div>
           )}
         </div>
+        {showDiagrams && (
+          <div className="w-1/3 h-full ml-4 bg-white border-2 rounded-md shadow-inner p-4 overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2">Generated Diagrams</h3>
+            <div className="flex flex-wrap mb-4">
+              {notes[currentPage].diagrams.map((diagram, index) => (
+                <Button
+                  key={diagram.id}
+                  onClick={() => setCurrentDiagram(diagram)}
+                  className={`mr-2 mb-2 ${currentDiagram?.id === diagram.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                >
+                  Diagram {index + 1}
+                </Button>
+              ))}
+            </div>
+            {currentDiagram && (
+              <>
+                <h4 className="text-md font-semibold mb-2">Selected Diagram</h4>
+                <DiagramGenerator key={currentDiagram.id} mermaidCode={currentDiagram.code} />
+                <p className="mt-2 text-sm text-gray-600">
+                  <strong>Based on:</strong> {currentDiagram.text}
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
