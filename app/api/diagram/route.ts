@@ -23,7 +23,8 @@ export const POST = async (request: NextRequest) => {
     `;
 
     const { text } = await generateText({
-      model: groqInstance("gemma2-9b-it"),
+      // model: groqInstance("gemma2-9b-it"),
+      model: groqInstance("Llama-3.2-90b-text-preview"),
       prompt,
     });
 
