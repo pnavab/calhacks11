@@ -93,6 +93,7 @@ export default function Component() {
   const [error, setError] = useState("");
   const [lastClickTime, setLastClickTime] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -362,6 +363,27 @@ export default function Component() {
     setIsCycling((prev) => !prev);
   };
 
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
+  };
+
+  const handleNoteEdit = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setNotes(prevNotes => {
+      const newNotes = [...prevNotes];
+      newNotes[currentPage] = { ...newNotes[currentPage], content: newContent };
+      return newNotes;
+    });
+  };
+
+  const handleViewClick = () => {
+    setEditMode(true);
+  };
+
+  const handleEditBlur = () => {
+    setEditMode(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
@@ -438,17 +460,24 @@ export default function Component() {
             </button>
           </div>
           <div className="relative flex-grow flex flex-col mt-4">
-            {/* <Textarea
-              value={notes[currentPage]?.content || ""}
-              // onChange={handleNoteChange}
-              readOnly
-              placeholder="Existing note content..."
-              className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
-              aria-label="Existing Note Input"
-            /> */}
-            <div className="flex-grow bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out max-h-96 overflow-y-auto">
-              <ReactMarkdown>{notes[currentPage]?.content || "Existing note content..."}</ReactMarkdown>
-            </div>
+            {editMode ? (
+              <Textarea
+                value={notes[currentPage]?.content || ""}
+                onChange={handleNoteEdit}
+                onBlur={handleEditBlur}
+                placeholder="Edit your note here..."
+                className="flex-grow text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
+                aria-label="Edit Note"
+                autoFocus
+              />
+            ) : (
+              <div 
+                onClick={handleViewClick}
+                className="flex-grow bg-white border-2 text-lg p-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out max-h-96 overflow-y-auto cursor-text"
+              >
+                <ReactMarkdown>{notes[currentPage]?.content || "Click to edit..."}</ReactMarkdown>
+              </div>
+            )}
             <Textarea
               value={pendingContent}
               onChange={handleManualInput}
