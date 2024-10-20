@@ -56,26 +56,6 @@ const summarizeNote = async (
   }
 };
 
-//API call for exporting the notes
-const exportNotes = async (notes: any) => {
-  try {
-    const response = await fetch("http://localhost:8000/upload", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(notes),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    console.log("Notes exported successfully");
-  } catch (error) {
-    console.error("Error exporting notes:", error);
-  }
-};
 
 // API call for transcribing audio chunks
 const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
@@ -113,6 +93,7 @@ export default function Component() {
   const [editingTitle, setEditingTitle] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [lastClickTime, setLastClickTime] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -122,6 +103,30 @@ export default function Component() {
 
   const [pendingContent, setPendingContent] = useState("");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  //API call for exporting the notes
+  const exportNotes = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(notes),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      console.log("Notes exported successfully");
+    } catch (error) {
+      console.error("Error exporting notes:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const summarizeContent = useCallback(
     (content: string) => {
@@ -374,8 +379,12 @@ export default function Component() {
             {isCycling ? <MicOff className="mr-2" /> : <Mic className="mr-2" />}
             {isCycling ? "Stop Recording" : "Start Recording"}
           </Button>
-          <Button onClick={async () => await exportNotes(notes)} className="bg-green-500 hover:bg-green-600">
-            Export Notes
+          <Button onClick={exportNotes} className="bg-green-500 hover:bg-green-600">
+            {isExporting ? (
+              <Loader2 className="animate-spin h-5 w-5 text-white" />
+            ) : (
+              "Export Notes"
+            )}
           </Button>
         </div>
       </header>
@@ -445,7 +454,7 @@ export default function Component() {
               value={pendingContent}
               onChange={handleManualInput}
               placeholder="Type or record your notes here..."
-              className="flex-grow text-lg p-4 mt-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
+              className="h-20 text-lg p-2 mt-4 rounded-lg shadow-inner bg-blue-100 focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
               aria-label="Pending Note Input"
             />
             <div className="absolute bottom-4 right-4 flex items-center space-x-2">
