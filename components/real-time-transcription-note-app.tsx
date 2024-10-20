@@ -57,10 +57,11 @@ const summarizeNote = async (
 };
 
 // API call for transcribing audio chunks
-const transcribeAudioChunk = async (audioChunk: Blob) => {
+const transcribeAudioChunk = async (audioChunk: Blob, text: string) => {
   try {
     const formData = new FormData();
     formData.set("audio", audioChunk, "audio.webm");
+    formData.append("text", text, "text.txt");
 
     const response = await fetch("/api/transcribe", {
       method: "POST",
@@ -152,7 +153,7 @@ export default function Component() {
           setCurrentPageTitle(result.currentContext);
           setPendingContent("");
         }
-        setTimeout(() => setSummarizeStatus(""), 5000);
+        setTimeout(() => setSummarizeStatus(""), 3000);
       });
     },
     [notes, currentPage, currentPageTitle]
@@ -223,7 +224,7 @@ export default function Component() {
           type: "audio/webm",
         });
         try {
-          const result = await transcribeAudioChunk(audioBlob);
+          const result = await transcribeAudioChunk(audioBlob, pendingContent);
           handleTranscribedInput(result.text);
         } catch (error) {
           console.error("Transcription error:", error);
