@@ -157,7 +157,7 @@ export default function Component() {
 
   // Handle changes in the pending content
   const handlePendingContent = (newContent: string) => {
-    setPendingContent(newContent);
+    setPendingContent((prevContent) => prevContent + " " + newContent);
 
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -208,7 +208,7 @@ export default function Component() {
         });
         try {
           const result = await transcribeAudioChunk(audioBlob);
-          handlePendingContent(pendingContent + result.text);
+          handlePendingContent(result.text);
         } catch (error) {
           console.error("Transcription error:", error);
         }
@@ -398,7 +398,7 @@ export default function Component() {
             />
             <Textarea
               value={pendingContent}
-              onChange={(e) => handlePendingContent(e.target.value)}
+              // onChange={(e) => handlePendingContent(e.target.value)}
               placeholder="Type or record your notes here..."
               className="flex-grow text-lg p-4 mt-4 rounded-md shadow-inner focus:ring-2 focus:ring-blue-300 transition-all duration-300 ease-in-out"
               aria-label="Pending Note Input"
