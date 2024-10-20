@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
 
+const DEBOUNCE_DELAY = 4000;
+const CYCLE_DURATION = 2000;
+
 // API call for saving notes
 const summarizeNote = async (
   previousSummary: string,
@@ -83,7 +86,6 @@ export default function Component() {
   const [currentPageTitle, setCurrentPageTitle] = useState("");
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summarizeStatus, setSummarizeStatus] = useState("");
-  const cycleDuration = 2000; // 3 seconds in milliseconds
   const [isCycling, setIsCycling] = useState(false);
   const [editingTitle, setEditingTitle] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -166,7 +168,7 @@ export default function Component() {
 
     timerRef.current = setTimeout(() => {
       summarizeContent(newContent);
-    }, 4000);
+    }, DEBOUNCE_DELAY);
   };
   // Handle changes in the pending content for transcribed audio
   const handleTranscribedInput = (newContent: string) => {
@@ -178,7 +180,7 @@ export default function Component() {
 
     timerRef.current = setTimeout(() => {
       summarizeContent(pendingContent + " " + newContent);
-    }, 4000);
+    }, DEBOUNCE_DELAY);
   };
 
   useEffect(() => {
@@ -308,10 +310,10 @@ export default function Component() {
         if (isCycling) {
           runCycle();
         }
-      }, cycleDuration);
+      }, CYCLE_DURATION);
     };
     runCycle();
-  }, [cycleDuration, isCycling]);
+  }, [CYCLE_DURATION, isCycling]);
 
   const stopRecordingCycle = useCallback(() => {
     setIsCycling(false);
