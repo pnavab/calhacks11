@@ -363,7 +363,7 @@ export default function Component() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col w-full">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-4xl font-[1000] text-gray-900">Notes</h1>
@@ -387,8 +387,8 @@ export default function Component() {
           </Button>
         </div>
       </header>
-      <main className="flex-grow flex flex-col p-4">
-        <div className="max-w-7xl w-full mx-auto flex-grow flex flex-col">
+      <main className="flex-grow flex flex-col p-4 w-full">
+        <div className="max-w-full w-full mx-auto flex-grow flex flex-col">
           <div className="flex items-center space-x-2 overflow-x-auto">
             {notes.map((note, index) => (
               <div
