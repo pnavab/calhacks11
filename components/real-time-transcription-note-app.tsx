@@ -302,22 +302,27 @@ export default function Component() {
     }, 0);
   };
 
-  const removePage = (index: number) => {
+  const removePage = (indexToRemove: number, event: React.MouseEvent) => {
+    event.stopPropagation();
     if (notes.length > 1) {
-      const newNotes = notes.filter((_, i) => i !== index);
-      setNotes(newNotes);
-      setCurrentPage(Math.min(index, newNotes.length - 1));
+      setNotes((prevNotes) => prevNotes.filter((_, index) => index !== indexToRemove));
+      if (currentPage >= indexToRemove && currentPage > 0) {
+        setCurrentPage(currentPage - 1);
+      }
+      setShowDiagrams(false);
+      setCurrentDiagram(null);
     }
   };
 
-  const updatePageTitle = (index: number, newTitle: string) => {
-    const newNotes = [...notes];
-    newNotes[index] = { ...newNotes[index], title: newTitle };
-    setNotes(newNotes);
-
-    if (index === currentPage) {
-      setCurrentPageTitle(newTitle);
+  const updatePageTitle = (index: number) => {
+    if (currentPageTitle.trim() !== "") {
+      setNotes((prevNotes) => {
+        const updatedNotes = [...prevNotes];
+        updatedNotes[index] = { ...updatedNotes[index], title: currentPageTitle.trim() };
+        return updatedNotes;
+      });
     }
+    setEditingTitle(null);
   };
 
   const handleTitleClick = (index: number) => {
@@ -511,7 +516,14 @@ export default function Component() {
   // Update the setCurrentPage function to reset currentDiagram
   const handleSetCurrentPage = (index: number) => {
     setCurrentPage(index);
-    setCurrentDiagram(null);
+    const currentNoteDiagrams = notes[index].diagrams;
+    if (currentNoteDiagrams.length > 0) {
+      setCurrentDiagram(currentNoteDiagrams[0]);
+      setShowDiagrams(true);
+    } else {
+      setCurrentDiagram(null);
+      setShowDiagrams(false);
+    }
   };
 
   return (
@@ -541,38 +553,44 @@ export default function Component() {
         <div className={`${showDiagrams ? 'w-2/3' : 'w-full'} h-full flex flex-col`}>
           <div className="flex items-center space-x-2 overflow-x-auto mb-4 pr-32 relative">
             {notes.map((note, index) => (
-              <div key={index} className="flex-shrink-0">
+              <div key={index} className="flex-shrink-0 relative group">
                 {editingTitle === index ? (
                   <Input
-                    ref={newTabInputRef}
-                    type="text"
-                    value={note.title}
-                    onChange={(e) => updatePageTitle(index, e.target.value)}
-                    onBlur={handleTitleBlur}
-                    onKeyDown={handleTitleKeyDown}
-                    className="w-32 bg-transparent border-none focus:outline-none text-center text-lg"
-                    autoFocus
+                    ref={index === notes.length - 1 ? newTabInputRef : null}
+                    value={currentPageTitle}
+                    onChange={(e) => setCurrentPageTitle(e.target.value)}
+                    onBlur={() => updatePageTitle(index)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        updatePageTitle(index);
+                      }
+                    }}
+                    className="w-32 text-sm"
                   />
                 ) : (
                   <Button
                     onClick={() => handleSetCurrentPage(index)}
-                    className={`inline-flex items-center px-3 py-2 rounded-lg text-lg font-semibold ${
-                      currentPage === index
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
+                    onDoubleClick={() => {
+                      setEditingTitle(index);
+                      setCurrentPageTitle(note.title);
+                    }}
+                    className={`
+                      ${currentPage === index
+                        ? "bg-blue-500 text-white hover:bg-blue-500"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      } transition-colors duration-200 pr-8
+                    `}
                   >
                     {note.title}
-                    {notes.length > 1 && (
-                      <button
-                        onClick={() => removePage(index)}
-                        className="ml-2 text-gray-400 hover:text-gray-600"
-                        aria-label={`Remove ${note.title}`}
-                      >
-                        <X className="size-6" />
-                      </button>
-                    )}
                   </Button>
+                )}
+                {notes.length > 1 && (
+                  <button
+                    onClick={(e) => removePage(index, e)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  >
+                    <X className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                  </button>
                 )}
               </div>
             ))}
@@ -643,7 +661,7 @@ export default function Component() {
             </div>
           )}
         </div>
-        {showDiagrams && (
+        {showDiagrams && notes[currentPage].diagrams.length > 0 && (
           <div className="w-1/3 h-full ml-4 bg-white border-2 rounded-md shadow-inner p-4 overflow-y-auto">
             <h3 className="text-lg font-semibold mb-2">Generated Diagrams</h3>
             <div className="flex flex-wrap mb-4">
