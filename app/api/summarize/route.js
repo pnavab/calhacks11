@@ -58,7 +58,7 @@ export async function POST(request) {
     *New teacher transcript chunk*: "${transcriptChunk}".
     *Current topic*: "${transcriptChunkContext}".
     
-    Return only the relevant summary formatted with Markdown, only including information from the transcript that relates to the current educational topic. Do not repeat the information included in the transcript chunk, and do not talk about details concerning the summary's information itself. Pretend you are a student writing directly into your notes and write only what is relevant to provide a learning experience.`;
+    Return only the relevant new summary formatted with Markdow and do not delete any previously formatted text, only including information from the transcript that relates to the current educational topic. Do not repeat the information included in the transcript chunk, and do not talk about details concerning the summary's information itself. Pretend you are a student writing directly into your notes and write only what is relevant to provide a learning experience.`;
 
     const { text } = await generateText({
       model: groqInstance('llama-3.2-90b-text-preview'),
